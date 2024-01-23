@@ -4,7 +4,9 @@ import random
 
 import pygame
 from pygame import time
+
 from screens import Screen
+from board_updates import Update
 
 
 all_sprites = pygame.sprite.Group()
@@ -42,12 +44,14 @@ class Main:
         self.FPS = 60
         self.clock = pygame.time.Clock()
         self.screens = Screen()
+        self.updates = Update()
 
         self.all_sprites = pygame.sprite.Group()
         self.num = 0
         self.moves = '15/15'
         self.remaining_time = 60
         self.quota = '0/20'
+        self.points_sum = 0
         self.score = 0
         self.level = 0
 
@@ -74,6 +78,8 @@ class Main:
         self.points_sum = 0
         self.stones_dct = {}
         self.crashed_stones = []
+        self.used_big_stones = []
+        self.big_stone_check = False
         self.num = random.randint(1, 9)
         self.level += 1
         self.screen.fill(pygame.Color('black'))
@@ -83,7 +89,7 @@ class Main:
             num = str(random.randint(1, 9))
             self.screen.blit(small_stone_picture, stone_coord)
             font = pygame.font.Font(None, 45)
-            string_rendered = font.render(num, 1, pygame.Color('blue'))
+            string_rendered = font.render(num, 1, pygame.Color('red'))
             intro_rect = string_rendered.get_rect()
             intro_rect.x = stone_coord[0] + 100
             intro_rect.y = stone_coord[1] + 100
@@ -167,36 +173,31 @@ class Main:
 
     def stone_click(self, mouse_pos):
         for key, value in self.stones_dct.items():
-            if not key in self.crashed_stones and value[-1][0] < mouse_pos[0] < value[-1][1] and value[-1][2] < mouse_pos[1] < value[-1][3]:
-                self.quota = f'{int(self.quota.split("/")[0]) + 1}/{self.quota.split("/")[1]}'
-                self.screen.fill(pygame.Color('black'), (830, 205, 100, 40))
-                font = pygame.font.Font(None, 50)
-                string_rendered = font.render(self.quota, 1, pygame.Color('grey'))
-                intro_rect = string_rendered.get_rect()
-                intro_rect.x = 830
-                intro_rect.y = 205
-                self.screen.blit(string_rendered, intro_rect)
-                pygame.display.update()
+            if key not in self.crashed_stones and value[-1][0] < mouse_pos[0] < value[-1][1] and value[-1][2] < mouse_pos[1] < value[-1][3]:
+                if int(key) > 12:
+                    self.big_stone_check = True
+                if int(key) < 13 and self.big_stone_check:
+                    self.quota = f'{int(self.quota.split("/")[0]) + 1}/{self.quota.split("/")[1]}'
+                    self.updates.quota_update(self.screen, self.quota)
 
-                self.points_sum += int(value[0])
-                self.screen.fill(pygame.Color('black'), (840, 250, 100, 40))
-                font = pygame.font.Font(None, 50)
-                string_rendered = font.render(str(self.points_sum), 1, pygame.Color('grey'))
-                intro_rect = string_rendered.get_rect()
-                intro_rect.x = 840
-                intro_rect.y = 250
-                self.screen.blit(string_rendered, intro_rect)
-                pygame.display.update()
-
-                if int(key) < 13:
                     self.screen.fill(pygame.Color('black'), (int(value[-1][0]), int(value[-1][2]),
-                                                             int(value[-1][1]) - int(value[-1][0]), int(value[-1][3]) - int(value[-1][2])))
+                                                             int(value[-1][1]) - int(value[-1][0]),
+                                                             int(value[-1][3]) - int(value[-1][2])))
                     pygame.display.update()
                     self.stones_dct[key] = (value[0], 1, value[-1])
                     self.crashed_stones.append(key)
 
+                if self.big_stone_check and key not in self.used_big_stones:
+                    self.points_sum += int(value[0])
+                    self.updates.points_sum_update(self.screen, self.points_sum)
+
+                if int(key) > 12:
+                    self.used_big_stones.append(key)
+
     def main(self):
         start = False
+        pause = False
+        mine_sound = pygame.mixer.Sound('mine_sound.mp3')
         explosion_sound = pygame.mixer.Sound('explosion_sound.mp3')
         explosion = AnimatedSprite(self.load_image('stone_explosion.png'), 5, 2, 50, 50)
 
@@ -215,13 +216,20 @@ class Main:
                     if event.key == pygame.K_l:
                         start = False
                         self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
-                    elif event.key == pygame.K_m:
+                    if event.key == pygame.K_m:
                         if not sound:
                             sound = True
-                            explosion_sound.play()
+                            mine_sound.play()
                         else:
                             sound = False
-                            explosion_sound.stop()
+                            mine_sound.stop()
+                    if event.key == pygame.K_SPACE and pause:
+                        self.moves = f'{self.moves.split("/")[1]}/{self.moves.split("/")[1]}'
+                        self.quota = f'0/{self.quota.split("/")[1]}'
+                        self.show_game_board()
+                        start_ticks = pygame.time.get_ticks()
+                        last_seconds = 0
+                        pause = False
                     if not start:
                         if event.key == pygame.K_SPACE and rules_or_fon % 2 == 1:
                             start = True
@@ -238,9 +246,10 @@ class Main:
                     else:
                         pass
 
-                elif event.type == pygame.MOUSEBUTTONDOWN and start:
+                elif event.type == pygame.MOUSEBUTTONDOWN and start and not pause:
                     if 15 < pygame.mouse.get_pos()[0] < 685 and 20 < pygame.mouse.get_pos()[1] < 610:
                         self.stone_click(pygame.mouse.get_pos())
+                        explosion_sound.play()
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                     explosion_sound.play()
@@ -251,52 +260,90 @@ class Main:
                         time.delay(100)
                     explosion.update()
 
-            if start and (pygame.time.get_ticks() - start_ticks) / 1000 > last_seconds:
-                self.screen.fill(pygame.Color('black'), (840, 160, 40, 40))
-                font = pygame.font.Font(None, 50)
-                string_rendered = font.render(str(self.remaining_time), 1, pygame.Color('grey'))
-                intro_rect = string_rendered.get_rect()
-                intro_rect.x = 840
-                intro_rect.y = 160
-                self.screen.blit(string_rendered, intro_rect)
-                self.remaining_time -= 10
-                last_seconds += 1
-                pygame.display.update()
+            if not pause:
+                if start and (pygame.time.get_ticks() - start_ticks) / 1000 > last_seconds:
+                    self.updates.time_update(self.screen, self.remaining_time)
+                    self.remaining_time -= 1
+                    last_seconds += 1
+                    pygame.display.update()
 
-            if self.remaining_time == 0:
-                self.moves = f'{int(self.moves.split("/")[0]) - 1}/{self.moves.split("/")[1]}'
-                self.screen.fill(pygame.Color('black'), (830, 115, 100, 40))
-                font = pygame.font.Font(None, 50)
-                string_rendered = font.render(self.moves, 1, pygame.Color('grey'))
-                intro_rect = string_rendered.get_rect()
-                intro_rect.x = 830
-                intro_rect.y = 115
-                self.screen.blit(string_rendered, intro_rect)
-                pygame.display.update()
-                self.remaining_time = 60
-                start_ticks = pygame.time.get_ticks()
-                last_seconds = 0
-                for key, value in self.stones_dct.items():
-                    if int(key) < 13 and value[1] > -1:
-                        self.stones_dct[key] = (value[0], value[1] - 1, value[-1])
-                    if value[1] == -1 and key in self.crashed_stones:
-                        small_stone_picture = pygame.transform.scale(self.load_image('stone2.png', -1), (225, 225))
-                        num = str(random.randint(1, 9))
-                        self.screen.blit(small_stone_picture, (value[-1][0] - 60, value[-1][2] - 80))
-                        font = pygame.font.Font(None, 45)
-                        string_rendered = font.render(num, 1, pygame.Color('blue'))
-                        intro_rect = string_rendered.get_rect()
-                        intro_rect.x = value[-1][0] - 60 + 100
-                        intro_rect.y = value[-1][2] - 80 + 100
-                        self.screen.blit(string_rendered, intro_rect)
-                        pygame.display.update()
+                if start and self.remaining_time == 0:
+                    start = False
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
 
-                        self.stones_dct[key] = (num, -1, value[-1])
-                        self.crashed_stones.remove(key)
+                if start and self.points_sum != 0 and self.points_sum % self.num == 0:
+                    self.score += self.remaining_time
+                    self.updates.score_update(self.screen, self.score)
+                    self.moves = f'{int(self.moves.split("/")[0]) - 1}/{self.moves.split("/")[1]}'
+                    self.updates.move_update(self.screen, self.moves)
+                    self.remaining_time = 60
+                    start_ticks = pygame.time.get_ticks()
+                    last_seconds = 0
+                    self.used_big_stones.clear()
+                    self.big_stone_check = False
+                    self.points_sum = 0
+                    self.updates.points_sum_update(self.screen, self.points_sum)
+                    for key, value in self.stones_dct.items():
+                        if int(key) < 13 and value[1] > -1:
+                            self.stones_dct[key] = (value[0], value[1] - 1, value[-1])
+                        if value[1] == -1 and key in self.crashed_stones:
+                            small_stone_picture = pygame.transform.scale(self.load_image('stone2.png', -1), (225, 225))
+                            num = str(random.randint(1, 9))
+                            self.screen.blit(small_stone_picture, (value[-1][0] - 60, value[-1][2] - 80))
+                            font = pygame.font.Font(None, 45)
+                            string_rendered = font.render(num, 1, pygame.Color('red'))
+                            intro_rect = string_rendered.get_rect()
+                            intro_rect.x = value[-1][0] - 60 + 100
+                            intro_rect.y = value[-1][2] - 80 + 100
+                            self.screen.blit(string_rendered, intro_rect)
+                            pygame.display.update()
 
-            if int(self.moves.split("/")[0]) == 0:
-                start = False
-                self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
+                            self.stones_dct[key] = (num, -1, value[-1])
+                            self.crashed_stones.remove(key)
+
+                        elif int(key) < 13 and key not in self.crashed_stones:
+                            self.stones_dct[key] = (str(int(value[0]) + 1), -1, value[-1])
+                            if not int(value[0]) + 1 > 9:
+                                small_stone_picture = pygame.transform.scale(self.load_image('stone2.png', -1), (225, 225))
+                                self.screen.blit(small_stone_picture, (value[-1][0] - 60, value[-1][2] - 80))
+                                font = pygame.font.Font(None, 45)
+                                string_rendered = font.render(str(int(value[0]) + 1), 1, pygame.Color('red'))
+                                intro_rect = string_rendered.get_rect()
+                                intro_rect.x = value[-1][0] - 60 + 100
+                                intro_rect.y = value[-1][2] - 80 + 100
+                                self.screen.blit(string_rendered, intro_rect)
+                                pygame.display.update()
+                            else:
+                                self.screen.fill(pygame.Color('black'), (int(value[-1][0]), int(value[-1][2]),
+                                                                         int(value[-1][1]) - int(value[-1][0]),
+                                                                         int(value[-1][3]) - int(value[-1][2])))
+                                pygame.display.update()
+                                self.stones_dct[key] = (1, 1, value[-1])
+                                self.crashed_stones.append(key)
+
+                    self.num = random.randint(1, 9)
+                    big_stone_picture = pygame.transform.scale(self.load_image('stone2.png', -1), (400, 400))
+                    self.screen.blit(big_stone_picture, (135, 115))
+                    font = pygame.font.Font(None, 80)
+                    string_rendered = font.render(str(self.num), 1, pygame.Color('light blue'))
+                    intro_rect = string_rendered.get_rect()
+                    intro_rect.x = 315
+                    intro_rect.y = 295
+                    self.screen.blit(string_rendered, intro_rect)
+
+            if start and int(self.moves.split("/")[0]) == 0:
+                if int(self.quota.split("/")[0]) >= int(self.quota.split("/")[1]):
+                    pause = True
+                    font = pygame.font.Font(None, 50)
+                    string_rendered = font.render('Нажмите "Space" для следующего уровня', 1, pygame.Color('grey'))
+                    intro_rect = string_rendered.get_rect()
+                    intro_rect.x = 10
+                    intro_rect.y = 630
+                    self.screen.blit(string_rendered, intro_rect)
+                    pygame.display.update()
+                else:
+                    start = False
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
 
             pygame.display.update()
             self.clock.tick(10)
@@ -305,7 +352,3 @@ class Main:
 
 start_game = Main()
 start_game.main()
-
-# import pygame
-#
-# print(pygame.font.get_fonts())

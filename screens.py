@@ -1,5 +1,3 @@
-import random
-
 import pygame
 import os
 import sys
@@ -23,6 +21,14 @@ class Screen:
         else:
             image = image.convert_alpha()
         return image
+
+    def write_logs(self, score, level):
+        with open('logs.txt', 'a') as logs:
+            result = ''
+            result += f'Счёт: {score}\n'
+            result += f'Уровень: {level}\n'
+            result += f'-----------------------------------------------------------------------------------------\n'
+            logs.write(result)
 
     def start_screen(self, screen, width, height):
         fon = pygame.transform.scale(self.load_image('fon3.webp'), (width, height))
@@ -77,28 +83,6 @@ class Screen:
             intro_rect.x = 10
             screen.blit(string_rendered, intro_rect)
 
-    # def show_game_board(self, screen, time, score, level):
-    #     screen.fill(pygame.Color('black'))
-    #     stat = [f'Время: {time}', f'Сумма: {time}', f'Число: {random.randint(2, 10)}', f'Счёт: {score}',
-    #             f'Уровень: {level}']
-    #
-    #     font = pygame.font.Font(None, 60)
-    #     string_rendered = font.render('Статистика', 1, pygame.Color('grey'))
-    #     intro_rect = string_rendered.get_rect()
-    #     intro_rect.x = 650
-    #     intro_rect.y = 20
-    #     screen.blit(string_rendered, intro_rect)
-    #
-    #     text_coord = 70
-    #     for line in stat:
-    #         font = pygame.font.Font(None, 50)
-    #         string_rendered = font.render(line, 1, pygame.Color('grey'))
-    #         intro_rect = string_rendered.get_rect()
-    #         text_coord += 45
-    #         intro_rect.top = text_coord
-    #         intro_rect.x = 650
-    #         screen.blit(string_rendered, intro_rect)
-
     def lose_screen(self, screen, width, height, score, level):
         stat = [f'Счёт: {score}', f'Уровень: {level}']
         rules_fon = pygame.transform.scale(self.load_image('fon2.webp'), (width, height))
@@ -120,3 +104,5 @@ class Screen:
             intro_rect.top = text_coord
             intro_rect.x = 250
             screen.blit(string_rendered, intro_rect)
+
+        self.write_logs(score, level)
