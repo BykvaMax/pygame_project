@@ -48,12 +48,16 @@ class Main:
 
         self.all_sprites = pygame.sprite.Group()
         self.num = 0
+        self.difficulty = 'Легко'
         self.moves = '15/15'
         self.remaining_time = 60
         self.quota = '0/20'
         self.points_sum = 0
         self.score = 0
         self.level = 0
+        self.points_multiplication = 1
+        self.last_move_stones = 0
+        self.cur_move_stones = 0
 
     def load_image(self, name, colorkey=None):
         fullname = os.path.join('data', name)
@@ -68,6 +72,7 @@ class Main:
             image.set_colorkey(colorkey)
         else:
             image = image.convert_alpha()
+            image = pygame.transform.scale(image, (600, 200))
         return image
 
     def terminate(self):
@@ -75,6 +80,19 @@ class Main:
         sys.exit()
 
     def show_game_board(self):
+        if self.difficulty == 'Легко':
+            self.moves = '15/15'
+            self.remaining_time = 60
+            self.quota = '0/20'
+        elif self.difficulty == 'Средне':
+            self.moves = '20/20'
+            self.remaining_time = 45
+            self.quota = '0/35'
+        elif self.difficulty == 'Сложно':
+            self.moves = '25/25'
+            self.remaining_time = 30
+            self.quota = '0/50'
+
         self.points_sum = 0
         self.stones_dct = {}
         self.crashed_stones = []
@@ -109,8 +127,10 @@ class Main:
 
         medium_stone_picture = pygame.transform.scale(self.load_image('stone2.png', -1), (300, 300))
         stone_coord = (70, 50)
+        num_lst = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         for i in range(4):
-            num = str(random.randint(1, 9))
+            num = str(random.choice(num_lst))
+            num_lst.remove(int(num))
             self.screen.blit(medium_stone_picture, stone_coord)
             font = pygame.font.Font(None, 60)
             string_rendered = font.render(num, 1, pygame.Color('yellow'))
@@ -152,7 +172,7 @@ class Main:
         self.screen.fill(pygame.Color('grey'), (15, 610, 670, 1))
 
         stat = [f'Ходы: {self.moves}', 'Время: ', f'Квота: {self.quota}', f'Сумма: {self.points_sum}',
-                f'Счёт: {self.score}', f'Уровень: {self.level}']
+                f'Счёт: {self.score}', f'Уровень: {self.level}', f'Сложность:', self.difficulty]
 
         font = pygame.font.Font(None, 60)
         string_rendered = font.render('Статистика', 1, pygame.Color('grey'))
@@ -177,7 +197,7 @@ class Main:
                 if int(key) > 12:
                     self.big_stone_check = True
                 if int(key) < 13 and self.big_stone_check:
-                    self.quota = f'{int(self.quota.split("/")[0]) + 1}/{self.quota.split("/")[1]}'
+                    self.quota = f'{int(self.quota.split("/")[0]) + 1 * self.points_multiplication}/{self.quota.split("/")[1]}'
                     self.updates.quota_update(self.screen, self.quota)
 
                     self.screen.fill(pygame.Color('black'), (int(value[-1][0]), int(value[-1][2]),
@@ -186,10 +206,24 @@ class Main:
                     pygame.display.update()
                     self.stones_dct[key] = (value[0], 1, value[-1])
                     self.crashed_stones.append(key)
+                    self.explosion = AnimatedSprite(self.load_image('stone_explosion2.png'), 5, 2, int(value[-1][0]) - 2, int(value[-1][2]) - 12)
+                    self.explosion_sound.play()
+                    for i in range(9):
+                        self.screen.fill(pygame.Color('black'), (int(value[-1][0]), int(value[-1][2]),
+                                                                 int(value[-1][1]) - int(value[-1][0]),
+                                                                 int(value[-1][3]) - int(value[-1][2]) + 5))
+                        self.explosion.update()
+                        all_sprites.draw(self.screen)
+                        pygame.display.update()
+                        pygame.display.update()
+                        time.delay(100)
 
                 if self.big_stone_check and key not in self.used_big_stones:
                     self.points_sum += int(value[0])
                     self.updates.points_sum_update(self.screen, self.points_sum)
+                    self.cur_move_stones += 1
+                    if int(key) > 12:
+                        self.stone_hit_sound.play()
 
                 if int(key) > 12:
                     self.used_big_stones.append(key)
@@ -198,13 +232,15 @@ class Main:
         start = False
         pause = False
         mine_sound = pygame.mixer.Sound('mine_sound.mp3')
-        explosion_sound = pygame.mixer.Sound('explosion_sound.mp3')
-        explosion = AnimatedSprite(self.load_image('stone_explosion.png'), 5, 2, 50, 50)
+        self.explosion_sound = pygame.mixer.Sound('explosion_sound.mp3')
+        self.stone_hit_sound = pygame.mixer.Sound('stone_hit_sound.mp3')
+        # dragon = AnimatedSprite(self.load_image("dragon.png"), 8, 2, 50, 50)
 
-        self.screens.start_screen(self.screen, self.width, self.height)
+        self.screens.start_screen(self.screen, self.width, self.height, self.difficulty)
 
         rules_or_fon = 1
-        sound = False
+        sound = True
+        mine_sound.play()
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -213,9 +249,14 @@ class Main:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.terminate()
+                    if event.key == pygame.K_h:
+                        start = False
+                        self.score = 0
+                        self.level = 0
+                        self.screens.start_screen(self.screen, self.width, self.height, self.difficulty)
                     if event.key == pygame.K_l:
                         start = False
-                        self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
+                        self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
                     if event.key == pygame.K_m:
                         if not sound:
                             sound = True
@@ -231,34 +272,37 @@ class Main:
                         last_seconds = 0
                         pause = False
                     if not start:
+                        if event.key == pygame.K_d and rules_or_fon % 2 == 1:
+                            if self.difficulty == 'Легко':
+                                self.difficulty = 'Средне'
+                            elif self.difficulty == 'Средне':
+                                self.difficulty = 'Сложно'
+                            elif self.difficulty == 'Сложно':
+                                self.difficulty = 'Легко'
+                            self.screens.start_screen(self.screen, self.width, self.height, self.difficulty)
+                            pygame.display.update()
+
                         if event.key == pygame.K_SPACE and rules_or_fon % 2 == 1:
                             start = True
+                            self.score = 0
+                            self.level = 0
                             self.show_game_board()
                             start_ticks = pygame.time.get_ticks()
                             last_seconds = 0
+
                         if event.key == pygame.K_r:
                             if rules_or_fon % 2 == 1:
                                 rules_or_fon += 1
                                 self.screens.show_rules(self.screen, self.width, self.height)
                             else:
                                 rules_or_fon += 1
-                                self.screens.start_screen(self.screen, self.width, self.height)
+                                self.screens.start_screen(self.screen, self.width, self.height, self.difficulty)
                     else:
                         pass
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and start and not pause:
                     if 15 < pygame.mouse.get_pos()[0] < 685 and 20 < pygame.mouse.get_pos()[1] < 610:
                         self.stone_click(pygame.mouse.get_pos())
-                        explosion_sound.play()
-
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-                    explosion_sound.play()
-                    for i in range(9):
-                        explosion.update()
-                        all_sprites.draw(self.screen)
-                        pygame.display.update()
-                        time.delay(100)
-                    explosion.update()
 
             if not pause:
                 if start and (pygame.time.get_ticks() - start_ticks) / 1000 > last_seconds:
@@ -269,18 +313,39 @@ class Main:
 
                 if start and self.remaining_time == 0:
                     start = False
-                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
+
+                if start and len(self.crashed_stones) == 12 and len(self.used_big_stones) == 4 and self.points_sum % self.num != 0:
+                    time.delay(1000)
+                    start = False
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
 
                 if start and self.points_sum != 0 and self.points_sum % self.num == 0:
-                    self.score += self.remaining_time
+                    if self.difficulty == 'Легко':
+                        self.score += self.remaining_time
+                    elif self.difficulty == 'Средне':
+                        self.score += self.remaining_time * 2
+                    elif self.difficulty == 'Сложно':
+                        self.score += self.remaining_time * 3
                     self.updates.score_update(self.screen, self.score)
                     self.moves = f'{int(self.moves.split("/")[0]) - 1}/{self.moves.split("/")[1]}'
                     self.updates.move_update(self.screen, self.moves)
-                    self.remaining_time = 60
+                    if self.difficulty == 'Легко':
+                        self.remaining_time = 60
+                    elif self.difficulty == 'Средне':
+                        self.remaining_time = 45
+                    elif self.difficulty == 'Сложно':
+                        self.remaining_time = 30
                     start_ticks = pygame.time.get_ticks()
                     last_seconds = 0
                     self.used_big_stones.clear()
                     self.big_stone_check = False
+                    if self.last_move_stones == self.cur_move_stones:
+                        self.points_multiplication += 1
+                    elif self.last_move_stones == self.cur_move_stones and self.last_move_stones != 0:
+                        self.points_multiplication = 1
+                    self.last_move_stones = self.cur_move_stones
+                    self.cur_move_stones = 0
                     self.points_sum = 0
                     self.updates.points_sum_update(self.screen, self.points_sum)
                     for key, value in self.stones_dct.items():
@@ -318,7 +383,7 @@ class Main:
                                                                          int(value[-1][1]) - int(value[-1][0]),
                                                                          int(value[-1][3]) - int(value[-1][2])))
                                 pygame.display.update()
-                                self.stones_dct[key] = (1, 1, value[-1])
+                                self.stones_dct[key] = (random.randint(1, 9), 1, value[-1])
                                 self.crashed_stones.append(key)
 
                     self.num = random.randint(1, 9)
@@ -342,12 +407,12 @@ class Main:
                     self.screen.blit(string_rendered, intro_rect)
                     pygame.display.update()
                 else:
+                    time.delay(1000)
                     start = False
-                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level)
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
 
             pygame.display.update()
             self.clock.tick(10)
-            # clock.tick(FPS)
 
 
 start_game = Main()

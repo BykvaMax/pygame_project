@@ -22,15 +22,16 @@ class Screen:
             image = image.convert_alpha()
         return image
 
-    def write_logs(self, score, level):
+    def write_logs(self, score, level, difficulty):
         with open('logs.txt', 'a') as logs:
             result = ''
             result += f'Счёт: {score}\n'
             result += f'Уровень: {level}\n'
+            result += f'Сложность: {difficulty}\n'
             result += f'-----------------------------------------------------------------------------------------\n'
             logs.write(result)
 
-    def start_screen(self, screen, width, height):
+    def start_screen(self, screen, width, height, difficulty):
         fon = pygame.transform.scale(self.load_image('fon3.webp'), (width, height))
         screen.blit(fon, (0, 0))
         font = pygame.font.Font(None, 100)
@@ -38,6 +39,13 @@ class Screen:
         intro_rect = string_rendered.get_rect()
         intro_rect.left = 275
         intro_rect.top = 50
+        screen.blit(string_rendered, intro_rect)
+
+        font = pygame.font.Font(None, 70)
+        string_rendered = font.render(f'Сложность: {difficulty}', 1, pygame.Color('grey'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.left = 300
+        intro_rect.top = 390
         screen.blit(string_rendered, intro_rect)
 
         font = pygame.font.Font(None, 70)
@@ -62,7 +70,10 @@ class Screen:
         screen.blit(string_rendered, intro_rect)
 
     def show_rules(self, screen, width, height):
-        rules = ['sadf', 'asfd', 'asgag', 'adfag']
+        rules = []
+        with open('rules.txt', 'r', encoding='utf-8') as file:
+            for line in file.readlines():
+                rules.append(line.strip())
         rules_fon = pygame.transform.scale(self.load_image('fon2.webp'), (width, height))
         screen.blit(rules_fon, (0, 0))
 
@@ -76,15 +87,15 @@ class Screen:
         text_coord = 70
         for line in rules:
             font = pygame.font.Font(None, 30)
-            string_rendered = font.render(line, 1, pygame.Color('grey'))
+            string_rendered = font.render(line, 1, pygame.Color('white'))
             intro_rect = string_rendered.get_rect()
             text_coord += 25
             intro_rect.top = text_coord
             intro_rect.x = 10
             screen.blit(string_rendered, intro_rect)
 
-    def lose_screen(self, screen, width, height, score, level):
-        stat = [f'Счёт: {score}', f'Уровень: {level}']
+    def lose_screen(self, screen, width, height, score, level, difficulty):
+        stat = [f'Счёт: {score}', f'Уровень: {level}', f'Сложность: {difficulty}']
         rules_fon = pygame.transform.scale(self.load_image('fon2.webp'), (width, height))
         screen.blit(rules_fon, (0, 0))
 
@@ -105,4 +116,4 @@ class Screen:
             intro_rect.x = 250
             screen.blit(string_rendered, intro_rect)
 
-        self.write_logs(score, level)
+        self.write_logs(score, level, difficulty)
