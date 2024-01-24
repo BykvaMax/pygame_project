@@ -22,12 +22,13 @@ class Screen:
             image = image.convert_alpha()
         return image
 
-    def write_logs(self, score, level, difficulty):
+    def write_logs(self, score, level, difficulty, lose_reason):
         with open('logs.txt', 'a') as logs:
             result = ''
             result += f'Счёт: {score}\n'
             result += f'Уровень: {level}\n'
             result += f'Сложность: {difficulty}\n'
+            result += f'Причина проигрыша: {lose_reason}\n'
             result += f'-----------------------------------------------------------------------------------------\n'
             logs.write(result)
 
@@ -94,8 +95,8 @@ class Screen:
             intro_rect.x = 10
             screen.blit(string_rendered, intro_rect)
 
-    def lose_screen(self, screen, width, height, score, level, difficulty):
-        stat = [f'Счёт: {score}', f'Уровень: {level}', f'Сложность: {difficulty}']
+    def lose_screen(self, screen, width, height, score, level, difficulty, lose_reason):
+        stat = [f'Счёт: {score}', f'Уровень: {level}', f'Сложность: {difficulty}', '']
         rules_fon = pygame.transform.scale(self.load_image('fon2.webp'), (width, height))
         screen.blit(rules_fon, (0, 0))
 
@@ -116,4 +117,16 @@ class Screen:
             intro_rect.x = 250
             screen.blit(string_rendered, intro_rect)
 
-        self.write_logs(score, level, difficulty)
+        font = pygame.font.Font(None, 50)
+        string_rendered = font.render(lose_reason, 1, pygame.Color('dark grey'))
+        intro_rect = string_rendered.get_rect()
+        if lose_reason == 'У вас закончилось время.' or lose_reason == 'Вы не набрали необходимую квоту.':
+            intro_rect.x = 250
+        elif lose_reason == 'У вас не осталось доступных для разрушения камней.':
+            intro_rect.x = 50
+        else:
+            intro_rect.x = 140
+        intro_rect.y = 110
+        screen.blit(string_rendered, intro_rect)
+
+        self.write_logs(score, level, difficulty, lose_reason)

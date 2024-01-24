@@ -58,6 +58,8 @@ class Main:
         self.points_multiplication = 1
         self.last_move_stones = 0
         self.cur_move_stones = 0
+        self.move_quota = 0
+        self.lose_reason = ''
 
     def load_image(self, name, colorkey=None):
         fullname = os.path.join('data', name)
@@ -197,8 +199,7 @@ class Main:
                 if int(key) > 12:
                     self.big_stone_check = True
                 if int(key) < 13 and self.big_stone_check:
-                    self.quota = f'{int(self.quota.split("/")[0]) + 1 * self.points_multiplication}/{self.quota.split("/")[1]}'
-                    self.updates.quota_update(self.screen, self.quota)
+                    self.move_quota += 1
 
                     self.screen.fill(pygame.Color('black'), (int(value[-1][0]), int(value[-1][2]),
                                                              int(value[-1][1]) - int(value[-1][0]),
@@ -256,7 +257,8 @@ class Main:
                         self.screens.start_screen(self.screen, self.width, self.height, self.difficulty)
                     if event.key == pygame.K_l:
                         start = False
-                        self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
+                        self.lose_reason = 'Вы специально вызвали экран проигрыша.'
+                        self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty, self.lose_reason)
                     if event.key == pygame.K_m:
                         if not sound:
                             sound = True
@@ -313,12 +315,14 @@ class Main:
 
                 if start and self.remaining_time == 0:
                     start = False
-                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
+                    self.lose_reason = 'У вас закончилось время.'
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty, self.lose_reason)
 
                 if start and len(self.crashed_stones) == 12 and len(self.used_big_stones) == 4 and self.points_sum % self.num != 0:
                     time.delay(1000)
                     start = False
-                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
+                    self.lose_reason = 'У вас не осталось доступных для разрушения камней.'
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty, self.lose_reason)
 
                 if start and self.points_sum != 0 and self.points_sum % self.num == 0:
                     if self.difficulty == 'Легко':
@@ -328,8 +332,6 @@ class Main:
                     elif self.difficulty == 'Сложно':
                         self.score += self.remaining_time * 3
                     self.updates.score_update(self.screen, self.score)
-                    self.moves = f'{int(self.moves.split("/")[0]) - 1}/{self.moves.split("/")[1]}'
-                    self.updates.move_update(self.screen, self.moves)
                     if self.difficulty == 'Легко':
                         self.remaining_time = 60
                     elif self.difficulty == 'Средне':
@@ -342,12 +344,22 @@ class Main:
                     self.big_stone_check = False
                     if self.last_move_stones == self.cur_move_stones:
                         self.points_multiplication += 1
-                    elif self.last_move_stones == self.cur_move_stones and self.last_move_stones != 0:
+                        self.quota = f'{int(self.quota.split("/")[0]) + self.move_quota * self.points_multiplication}/{self.quota.split("/")[1]}'
+                        self.updates.quota_update(self.screen, self.quota)
+                    elif self.last_move_stones != self.cur_move_stones and self.last_move_stones != 0:
                         self.points_multiplication = 1
+                        self.quota = f'{int(self.quota.split("/")[0]) + self.move_quota * self.points_multiplication}/{self.quota.split("/")[1]}'
+                        self.updates.quota_update(self.screen, self.quota)
+                    elif self.last_move_stones == 0:
+                        self.quota = f'{int(self.quota.split("/")[0]) + self.move_quota * self.points_multiplication}/{self.quota.split("/")[1]}'
+                        self.updates.quota_update(self.screen, self.quota)
+                    self.move_quota = 0
                     self.last_move_stones = self.cur_move_stones
                     self.cur_move_stones = 0
                     self.points_sum = 0
                     self.updates.points_sum_update(self.screen, self.points_sum)
+                    self.moves = f'{int(self.moves.split("/")[0]) - 1}/{self.moves.split("/")[1]}'
+                    self.updates.move_update(self.screen, self.moves)
                     for key, value in self.stones_dct.items():
                         if int(key) < 13 and value[1] > -1:
                             self.stones_dct[key] = (value[0], value[1] - 1, value[-1])
@@ -409,7 +421,8 @@ class Main:
                 else:
                     time.delay(1000)
                     start = False
-                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty)
+                    self.lose_reason = 'Вы не набрали необходимую квоту.'
+                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty, self.lose_reason)
 
             pygame.display.update()
             self.clock.tick(10)
