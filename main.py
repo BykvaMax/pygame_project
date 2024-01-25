@@ -235,9 +235,9 @@ class Main:
     def main(self):
         start = False
         pause = False
-        mine_sound = pygame.mixer.Sound('mine_sound.mp3')
-        self.explosion_sound = pygame.mixer.Sound('explosion_sound.mp3')
-        self.stone_hit_sound = pygame.mixer.Sound('stone_hit_sound.mp3')
+        mine_sound = pygame.mixer.Sound('data/mine_sound.mp3')
+        self.explosion_sound = pygame.mixer.Sound('data/explosion_sound.mp3')
+        self.stone_hit_sound = pygame.mixer.Sound('data/stone_hit_sound.mp3')
         # dragon = AnimatedSprite(self.load_image("dragon.png"), 8, 2, 50, 50)
 
         self.screens.start_screen(self.screen, self.width, self.height, self.difficulty)
