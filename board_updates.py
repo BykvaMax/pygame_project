@@ -35,22 +35,34 @@ class Update:
         screen.blit(string_rendered, intro_rect)
         pygame.display.update()
 
-    def points_sum_update(self, screen, points_sum):
-        screen.fill(pygame.Color('black'), (840, 250, 100, 40))
+    def multiplication_update(self, screen, points_multiplication):
+        screen.fill(pygame.Color('black'), (920, 250, 100, 40))
         font = pygame.font.Font(None, 50)
-        string_rendered = font.render(str(points_sum), 1, pygame.Color('grey'))
+        string_rendered = font.render(str(points_multiplication), 1, pygame.Color('grey'))
         intro_rect = string_rendered.get_rect()
-        intro_rect.x = 840
+        intro_rect.x = 920
         intro_rect.y = 250
         screen.blit(string_rendered, intro_rect)
         pygame.display.update()
 
+    def points_sum_update(self, screen, points_sum, num):
+        screen.fill(pygame.Color('black'), (840, 295, 200, 40))
+        font = pygame.font.Font(None, 50)
+        next_points_sum = points_sum - (points_sum % num) + num
+        string_rendered = font.render(f'{points_sum}/{next_points_sum, next_points_sum + num}',
+                                      1, pygame.Color('grey'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.x = 840
+        intro_rect.y = 295
+        screen.blit(string_rendered, intro_rect)
+        pygame.display.update()
+
     def score_update(self, screen, score):
-        screen.fill(pygame.Color('black'), (810, 295, 100, 40))
+        screen.fill(pygame.Color('black'), (810, 340, 100, 40))
         font = pygame.font.Font(None, 50)
         string_rendered = font.render(str(score), 1, pygame.Color('grey'))
         intro_rect = string_rendered.get_rect()
         intro_rect.x = 810
-        intro_rect.y = 295
+        intro_rect.y = 340
         screen.blit(string_rendered, intro_rect)
         pygame.display.update()

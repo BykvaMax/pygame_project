@@ -39,7 +39,7 @@ class Main:
     def __init__(self):
         pygame.init()
         pygame.display.set_caption('Stone Breaker')
-        size = self.width, self.height = 1000, 700
+        size = self.width, self.height = 1010, 700
         self.screen = pygame.display.set_mode(size)
         self.FPS = 60
         self.clock = pygame.time.Clock()
@@ -173,7 +173,8 @@ class Main:
         self.screen.fill(pygame.Color('grey'), (15, 20, 1, 590))
         self.screen.fill(pygame.Color('grey'), (15, 610, 670, 1))
 
-        stat = [f'Ходы: {self.moves}', 'Время: ', f'Квота: {self.quota}', f'Сумма: {self.points_sum}',
+        stat = [f'Ходы: {self.moves}', 'Время: ', f'Квота: {self.quota}',
+                f'Множитель: {self.points_multiplication}', f'Сумма: {self.points_sum}',
                 f'Счёт: {self.score}', f'Уровень: {self.level}', f'Сложность:', self.difficulty]
 
         font = pygame.font.Font(None, 60)
@@ -192,6 +193,8 @@ class Main:
             intro_rect.top = text_coord
             intro_rect.x = 710
             self.screen.blit(string_rendered, intro_rect)
+
+        self.updates.points_sum_update(self.screen, self.points_sum, self.num)
 
     def stone_click(self, mouse_pos):
         for key, value in self.stones_dct.items():
@@ -221,7 +224,7 @@ class Main:
 
                 if self.big_stone_check and key not in self.used_big_stones:
                     self.points_sum += int(value[0])
-                    self.updates.points_sum_update(self.screen, self.points_sum)
+                    self.updates.points_sum_update(self.screen, self.points_sum, self.num)
                     self.cur_move_stones += 1
                     if int(key) > 12:
                         self.stone_hit_sound.play()
@@ -269,6 +272,8 @@ class Main:
                     if event.key == pygame.K_SPACE and pause:
                         self.moves = f'{self.moves.split("/")[1]}/{self.moves.split("/")[1]}'
                         self.quota = f'0/{self.quota.split("/")[1]}'
+                        self.last_move_stones = 0
+                        self.points_multiplication = 1
                         self.show_game_board()
                         start_ticks = pygame.time.get_ticks()
                         last_seconds = 0
@@ -288,6 +293,8 @@ class Main:
                             start = True
                             self.score = 0
                             self.level = 0
+                            self.points_multiplication = 1
+                            self.last_move_stones = 0
                             self.show_game_board()
                             start_ticks = pygame.time.get_ticks()
                             last_seconds = 0
@@ -353,11 +360,12 @@ class Main:
                     elif self.last_move_stones == 0:
                         self.quota = f'{int(self.quota.split("/")[0]) + self.move_quota * self.points_multiplication}/{self.quota.split("/")[1]}'
                         self.updates.quota_update(self.screen, self.quota)
+                    self.updates.multiplication_update(self.screen, self.points_multiplication)
                     self.move_quota = 0
                     self.last_move_stones = self.cur_move_stones
                     self.cur_move_stones = 0
                     self.points_sum = 0
-                    self.updates.points_sum_update(self.screen, self.points_sum)
+                    self.updates.points_sum_update(self.screen, self.points_sum, self.num)
                     self.moves = f'{int(self.moves.split("/")[0]) - 1}/{self.moves.split("/")[1]}'
                     self.updates.move_update(self.screen, self.moves)
                     for key, value in self.stones_dct.items():
@@ -408,21 +416,20 @@ class Main:
                     intro_rect.y = 295
                     self.screen.blit(string_rendered, intro_rect)
 
-            if start and int(self.moves.split("/")[0]) == 0:
-                if int(self.quota.split("/")[0]) >= int(self.quota.split("/")[1]):
-                    pause = True
-                    font = pygame.font.Font(None, 50)
-                    string_rendered = font.render('Нажмите "Space" для следующего уровня', 1, pygame.Color('grey'))
-                    intro_rect = string_rendered.get_rect()
-                    intro_rect.x = 10
-                    intro_rect.y = 630
-                    self.screen.blit(string_rendered, intro_rect)
-                    pygame.display.update()
-                else:
-                    time.delay(1000)
-                    start = False
-                    self.lose_reason = 'Вы не набрали необходимую квоту.'
-                    self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty, self.lose_reason)
+            if start and int(self.quota.split("/")[0]) >= int(self.quota.split("/")[1]):
+                pause = True
+                font = pygame.font.Font(None, 50)
+                string_rendered = font.render('Нажмите "Space" для следующего уровня', 1, pygame.Color('grey'))
+                intro_rect = string_rendered.get_rect()
+                intro_rect.x = 10
+                intro_rect.y = 630
+                self.screen.blit(string_rendered, intro_rect)
+                pygame.display.update()
+            elif int(self.moves.split("/")[0]) == 0:
+                time.delay(1000)
+                start = False
+                self.lose_reason = 'Вы не набрали необходимую квоту.'
+                self.screens.lose_screen(self.screen, self.width, self.height, self.score, self.level, self.difficulty, self.lose_reason)
 
             pygame.display.update()
             self.clock.tick(10)
